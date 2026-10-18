@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CareFlow Health OS — Hospital System & Queue Manager</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- jsPDF CDN for Prescription Download -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
+
+  <!-- Top Enterprise Navbar -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('booking')">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-sky-500/20">
+          <i data-lucide="stethoscope" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <span class="font-black text-slate-900 text-lg tracking-tight">CareFlow</span>
+            <span class="text-[9px] uppercase font-black bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded tracking-wider">HEALTH OS</span>
+          </div>
+          <p class="text-[10px] text-slate-400 font-medium">Enterprise Clinical & OPD Suite</p>
+        </div>
+      </div>
+
+      <!-- Segmented Navigation -->
+      <nav class="hidden md:flex items-center gap-1.5 bg-slate-100/80 p-1 rounded-2xl border border-slate-200/60">
+        <button id="nav-booking" onclick="switchTab('booking')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-white text-sky-700 shadow-xs">
+          <i data-lucide="calendar" class="w-3.5 h-3.5"></i> Book Doctor
+        </button>
+        <button id="nav-queue" onclick="switchTab('queue')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900">
+          <i data-lucide="activity" class="w-3.5 h-3.5"></i> Live Queue
+        </button>
+        <button id="nav-pharmacy" onclick="switchTab('pharmacy')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900">
+          <i data-lucide="pill" class="w-3.5 h-3.5"></i> Pharmacy (500+ SKUs)
+        </button>
+        <button id="nav-kiosk" onclick="switchTab('kiosk')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900">
+          <i data-lucide="tv" class="w-3.5 h-3.5"></i> TV Lounge Kiosk
+        </button>
+      </nav>
+
+      <!-- Emergency Pill & Role Toggle -->
+      <div class="flex items-center gap-3">
+        <button onclick="switchTab('emergency')" class="px-3 py-1.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100">
+          <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+          <span>🚨 SOS 108</span>
+        </button>
+        <button onclick="openDoctorEMR()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm">
+          <i data-lucide="user-check" class="w-3.5 h-3.5"></i> Doctor EMR Portal
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Viewport Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- VIEW 1: BOOK DOCTOR -->
+    <section id="view-booking" class="space-y-6">
+      <div class="bg-white rounded-3xl p-6 shadow-xs border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="text-xs font-bold text-sky-600 uppercase tracking-wider">Outpatient Department (OPD) Booking</span>
+          <h2 class="text-xl font-bold text-slate-900">Consult Top Specialist Physicians</h2>
+          <p class="text-xs text-slate-500">Pick doctor, choose your 15-minute slot, and pay in Indian Rupee (₹).</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-slate-500">Campus:</span>
+          <select class="border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium outline-none">
+            <option>CareFlow Central Medical Center (Main Campus)</option>
+            <option>CareFlow North Pavilion & Trauma Center</option>
+            <option>CareFlow West Outpatient Clinic</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Doctor Grid & Interactive Slot Picker -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Doctors List -->
+        <div class="lg:col-span-2 space-y-4">
+          <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Available Specialists (18 Doctors)</h3>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="doctors-list-container">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Slot Picker & Checkout Panel -->
+        <div class="lg:col-span-1">
+          <div class="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs sticky top-24 space-y-4">
+            <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+              <i data-lucide="calendar-clock" class="w-4 h-4 text-sky-600"></i> Appointment Slot Picker
+            </h3>
+
+            <div class="p-3 bg-sky-50 rounded-2xl border border-sky-100" id="selected-doctor-summary">
+              <p class="text-[10px] text-slate-400 font-bold uppercase">Selected Physician</p>
+              <p class="text-sm font-bold text-slate-900" id="summary-doc-name">Dr. Marcus Vance</p>
+              <p class="text-xs text-sky-700" id="summary-doc-dept">Cardiology • Suite 302</p>
+            </div>
+
+            <div>
+              <label class="text-xs font-semibold text-slate-700 block mb-1">Consultation Date</label>
+              <input type="date" id="booking-date" class="w-full border border-slate-200 rounded-xl p-2 text-xs outline-none focus:ring-2 focus:ring-sky-500" value="2026-10-19" />
+            </div>
+
+            <div>
+              <label class="text-xs font-semibold text-slate-700 block mb-1.5">Available 15-Minute Slots</label>
+              <div class="grid grid-cols-3 gap-2" id="slot-buttons-container">
+                <button onclick="selectSlot('09:30 AM')" class="slot-btn py-1.5 text-xs rounded-xl font-medium border border-slate-200 hover:bg-sky-50 text-slate-700">09:30 AM</button>
+                <button onclick="selectSlot('10:00 AM')" class="slot-btn py-1.5 text-xs rounded-xl font-medium border border-slate-200 hover:bg-sky-50 text-slate-700">10:00 AM</button>
+                <button onclick="selectSlot('10:15 AM')" class="slot-btn py-1.5 text-xs rounded-xl font-bold bg-sky-600 text-white border border-sky-600 shadow-xs">10:15 AM</button>
+                <button onclick="selectSlot('11:00 AM')" class="slot-btn py-1.5 text-xs rounded-xl font-medium border border-slate-200 hover:bg-sky-50 text-slate-700">11:00 AM</button>
+                <button onclick="selectSlot('11:30 AM')" class="slot-btn py-1.5 text-xs rounded-xl font-medium border border-slate-200 hover:bg-sky-50 text-slate-700">11:30 AM</button>
+                <button onclick="selectSlot('02:15 PM')" class="slot-btn py-1.5 text-xs rounded-xl font-medium border border-slate-200 hover:bg-sky-50 text-slate-700">02:15 PM</button>
+              </div>
+            </div>
+
+            <div>
+              <label class="text-xs font-semibold text-slate-700 block mb-1">Payment Method (INR)</label>
+              <select id="payment-mode" class="w-full border border-slate-200 rounded-xl p-2 text-xs font-medium outline-none">
+                <option>⚡ UPI (Google Pay / PhonePe / Paytm) — ₹1,200</option>
+                <option>💳 RuPay / Debit Card — ₹1,200</option>
+                <option>🏥 Cashless Insurance (PM-JAY / TPA)</option>
+                <option>💵 Cash at Clinic Counter</option>
+              </select>
+            </div>
+
+            <button onclick="confirmAppointment()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-md transition flex items-center justify-center gap-1.5">
+              <i data-lucide="check-circle-2" class="w-4 h-4"></i> Confirm & Authorize Booking
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: LIVE QUEUE BOARD -->
+    <section id="view-queue" class="space-y-6 hidden">
+      <div class="bg-white rounded-3xl p-6 shadow-xs border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="text-xs font-bold text-sky-600 uppercase tracking-wider flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Real-Time OPD Queue
+          </span>
+          <h2 class="text-xl font-bold text-slate-900">Hospital Live Waiting Room Board</h2>
+          <p class="text-xs text-slate-500">Live consultation velocity, token callouts, and estimated wait times.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-bold">
+            Socket Connected
+          </span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Now Serving Monitor -->
+        <div class="bg-white rounded-3xl p-6 border border-slate-200 text-center flex flex-col items-center justify-center">
+          <span class="text-xs font-bold uppercase tracking-widest text-slate-400">NOW CONSULTING IN ROOM</span>
+          <div class="my-4">
+            <div id="serving-token-display" class="text-6xl font-black text-sky-600 tracking-tight animate-bounce">#CARD-01</div>
+            <p class="text-sm font-bold text-slate-800 mt-2">Patient: John Doe</p>
+            <p class="text-xs text-sky-700">Dr. Marcus Vance • Suite 302</p>
+          </div>
+          <div class="w-full border-t border-slate-100 pt-4 grid grid-cols-2 gap-2 text-center text-xs">
+            <div>
+              <p class="text-slate-400 font-medium">Waiting Line</p>
+              <p class="text-lg font-bold text-slate-900">4 Patients</p>
+            </div>
+            <div>
+              <p class="text-slate-400 font-medium">Est. Velocity</p>
+              <p class="text-lg font-bold text-emerald-600">15m / pt</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Queue Roster -->
+        <div class="lg:col-span-2 bg-white rounded-3xl p-5 border border-slate-200 space-y-3">
+          <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+            <i data-lucide="users" class="w-4 h-4 text-sky-600"></i> Active Waiting Sequence
+          </h3>
+
+          <div class="space-y-2" id="queue-roster-list">
+            <div class="p-3 bg-sky-50 rounded-2xl border border-sky-200 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="font-black text-sm px-2.5 py-1 bg-sky-600 text-white rounded-xl">CARD-01</span>
+                <div>
+                  <p class="font-bold text-xs text-slate-900">John Doe</p>
+                  <p class="text-[11px] text-slate-500">Slot: 10:15 AM • In-Person</p>
+                </div>
+              </div>
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">IN ROOM</span>
+            </div>
+
+            <div class="p-3 bg-white rounded-2xl border border-slate-200 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="font-black text-sm px-2.5 py-1 bg-slate-100 text-slate-800 rounded-xl">CARD-02</span>
+                <div>
+                  <p class="font-bold text-xs text-slate-900">Rahul Sharma</p>
+                  <p class="text-[11px] text-slate-500">Slot: 10:30 AM • In-Person</p>
+                </div>
+              </div>
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">~15m Wait</span>
+            </div>
+
+            <div class="p-3 bg-white rounded-2xl border border-slate-200 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="font-black text-sm px-2.5 py-1 bg-slate-100 text-slate-800 rounded-xl">CARD-03</span>
+                <div>
+                  <p class="font-bold text-xs text-slate-900">Pooja Nair</p>
+                  <p class="text-[11px] text-slate-500">Slot: 10:45 AM • In-Person</p>
+                </div>
+              </div>
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">~30m Wait</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: PHARMACY (500+ DRUGS) -->
+    <section id="view-pharmacy" class="space-y-6 hidden">
+      <div class="bg-white rounded-3xl p-6 shadow-xs border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="pill" class="w-4 h-4"></i> Hospital Pharmacy & Formulary
+          </span>
+          <h2 class="text-xl font-bold text-slate-900">Hospital Medicine Inventory (500+ SKUs in INR ₹)</h2>
+          <p class="text-xs text-slate-500">Search drugs, verify dosages, and calculate prescription billing.</p>
+        </div>
+        <div class="relative w-full md:w-80">
+          <input type="text" id="drug-search-input" onkeyup="filterDrugs()" placeholder="Search 500+ medications by salt or brand..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-amber-500" />
+        </div>
+      </div>
+
+      <div class="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-50 text-slate-500 uppercase font-bold border-b border-slate-100">
+            <tr>
+              <th class="p-3">Drug Name</th>
+              <th class="p-3">Strength / Formulation</th>
+              <th class="p-3">Therapeutic Category</th>
+              <th class="p-3">Stock Units</th>
+              <th class="p-3 text-right">Price (₹)</th>
+            </tr>
+          </thead>
+          <tbody id="drugs-table-body" class="divide-y divide-slate-100 text-slate-700">
+            <!-- Populated via JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VIEW 4: TV LOUNGE KIOSK -->
+    <section id="view-kiosk" class="space-y-6 hidden">
+      <div class="bg-slate-950 text-white rounded-3xl p-6 border border-slate-800 shadow-2xl space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-sky-500/20 text-sky-400 flex items-center justify-center">
+              <i data-lucide="radio" class="w-5 h-5 animate-pulse"></i>
+            </div>
+            <div>
+              <h2 class="text-lg md:text-xl font-black">CareFlow Waiting Lounge TV Display</h2>
+              <p class="text-xs text-slate-400">Live multi-room turn callout with text-to-speech audio</p>
+            </div>
+          </div>
+          <button onclick="triggerVoiceCallout('CARD-01', '302')" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm">
+            <i data-lucide="volume-2" class="w-4 h-4"></i> Voice Call #CARD-01
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 text-center space-y-3">
+            <span class="text-xs font-bold text-sky-400 px-2.5 py-0.5 rounded bg-sky-950 border border-sky-800">ROOM 302 • CARDIOLOGY</span>
+            <h4 class="text-sm font-bold text-white">Dr. Marcus Vance</h4>
+            <div class="py-4 bg-slate-950 rounded-xl border border-slate-800">
+              <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">NOW CONSULTING</span>
+              <div class="text-4xl font-black text-emerald-400 mt-1">CARD-01</div>
+            </div>
+            <p class="text-xs text-slate-400">Patient: John Doe</p>
+          </div>
+
+          <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 text-center space-y-3">
+            <span class="text-xs font-bold text-sky-400 px-2.5 py-0.5 rounded bg-sky-950 border border-sky-800">ROOM 415 • NEUROLOGY</span>
+            <h4 class="text-sm font-bold text-white">Dr. Elena Rostova</h4>
+            <div class="py-4 bg-slate-950 rounded-xl border border-slate-800">
+              <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">NOW CONSULTING</span>
+              <div class="text-4xl font-black text-emerald-400 mt-1">NEUR-01</div>
+            </div>
+            <p class="text-xs text-slate-400">Patient: S. Mukherjee</p>
+          </div>
+
+          <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 text-center space-y-3">
+            <span class="text-xs font-bold text-sky-400 px-2.5 py-0.5 rounded bg-sky-950 border border-sky-800">ROOM 108 • ORTHOPEDICS</span>
+            <h4 class="text-sm font-bold text-white">Dr. David Chen</h4>
+            <div class="py-4 bg-slate-950 rounded-xl border border-slate-800">
+              <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">NOW CONSULTING</span>
+              <div class="text-4xl font-black text-emerald-400 mt-1">ORTH-01</div>
+            </div>
+            <p class="text-xs text-slate-400">Patient: Amit Trivedi</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 5: EMERGENCY SOS -->
+    <section id="view-emergency" class="space-y-6 hidden">
+      <div class="bg-gradient-to-r from-red-600 via-rose-700 to-red-800 text-white p-6 rounded-3xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+        <div>
+          <span class="text-[10px] font-black uppercase tracking-widest bg-white/20 px-2.5 py-0.5 rounded-full">24x7 CODE RED TRAUMA BAY</span>
+          <h2 class="text-2xl font-black mt-1">Hospital Emergency & Ambulance SOS</h2>
+          <p class="text-xs text-rose-100">Instant Advanced Cardiac Life Support (ACLS) dispatch with GPS telemetry.</p>
+        </div>
+        <a href="tel:108" class="px-5 py-3 bg-white text-red-700 font-black text-xs rounded-2xl shadow-lg transition flex items-center gap-2">
+          <i data-lucide="phone-call" class="w-4 h-4 text-red-600"></i> DIAL 108 / 112 (FREE)
+        </a>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+          <h3 class="font-bold text-slate-900 text-sm">Request Instant Ambulance SOS</h3>
+          <input type="text" class="w-full border border-slate-200 rounded-xl p-2.5 text-xs" value="John Doe (+91 98765 43210)" />
+          <textarea class="w-full border border-slate-200 rounded-xl p-2.5 text-xs" rows="3">Flat 402, Green Glen Heights, Ring Road, South City</textarea>
+          <button onclick="dispatchAmbulance()" class="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-2xl shadow-lg transition flex items-center justify-center gap-2">
+            <i data-lucide="alert-triangle" class="w-4 h-4 animate-bounce"></i> DISPATCH ADVANCED AMBULANCE
+          </button>
+        </div>
+
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
+          <h3 class="font-bold text-slate-900 text-sm">Active Fleet Status</h3>
+          <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+            <div>
+              <p class="font-bold text-xs text-slate-900">ALS Unit-01 (Cardiac Bay)</p>
+              <p class="text-[11px] text-slate-500">Crew: Dr. Priya (Paramedic) • Main Trauma</p>
+            </div>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">READY</span>
+          </div>
+          <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+            <div>
+              <p class="font-bold text-xs text-slate-900">ALS Unit-02 (Trauma Bay)</p>
+              <p class="text-[11px] text-slate-500">Crew: Dr. Ajay (ER) • North Pavilion</p>
+            </div>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">READY</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FLOATING AI CLINICAL TRIAGE CHATBOT -->
+  <div id="ai-chat-launcher" onclick="toggleAIChat()" class="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-sky-600 to-indigo-600 text-white p-4 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2.5 cursor-pointer border-2 border-white/20 ring-4 ring-sky-500/20">
+    <i data-lucide="bot" class="w-6 h-6 animate-pulse"></i>
+    <span class="font-bold text-xs pr-1 hidden sm:inline-block">Dr. CareAI Triage</span>
+  </div>
+
+  <div id="ai-chat-modal" class="fixed bottom-6 right-6 z-50 bg-white rounded-3xl shadow-2xl border border-slate-200 w-[94vw] sm:w-[420px] h-[580px] max-h-[85vh] flex-col hidden overflow-hidden">
+    <!-- Chat Header -->
+    <div class="bg-gradient-to-r from-sky-600 to-indigo-600 p-4 text-white flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+          <i data-lucide="bot" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-sm">Dr. CareAI Clinical Engine</h3>
+          <p class="text-[10px] text-sky-100">Differential Triage & Doctor Referral</p>
+        </div>
+      </div>
+      <button onclick="toggleAIChat()" class="p-1 hover:bg-white/20 rounded-lg text-white">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- Chat Messages Scroll Area -->
+    <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50 text-xs">
+      <div class="flex flex-col items-start">
+        <span class="text-[10px] text-slate-400 font-bold mb-1">Dr. CareAI</span>
+        <div class="p-3 bg-white border border-slate-200 rounded-2xl rounded-tl-none text-slate-800 leading-relaxed shadow-xs">
+          Greetings! Describe any symptoms (e.g. crushing chest pain, throbbing migraine with aura, knee clicking, or acid reflux), and I will provide clinical differential triage and doctor recommendations.
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Prompt Chips -->
+    <div class="p-2 border-t border-slate-100 bg-white overflow-x-auto flex gap-1.5 scrollbar-none">
+      <button onclick="sendQuickPrompt('Crushing chest tightness with left arm pain')" class="whitespace-nowrap px-2.5 py-1 rounded-full bg-slate-100 hover:bg-sky-50 text-[10px] text-slate-600 border border-slate-200">Chest Pain</button>
+      <button onclick="sendQuickPrompt('Throbbing unilateral migraine with scintillating scotoma')" class="whitespace-nowrap px-2.5 py-1 rounded-full bg-slate-100 hover:bg-sky-50 text-[10px] text-slate-600 border border-slate-200">Migraine & Aura</button>
+      <button onclick="sendQuickPrompt('Knee joint crepitus and stair descent pain')" class="whitespace-nowrap px-2.5 py-1 rounded-full bg-slate-100 hover:bg-sky-50 text-[10px] text-slate-600 border border-slate-200">Knee Arthritis</button>
+      <button onclick="sendQuickPrompt('Acid reflux and epigastric burning')" class="whitespace-nowrap px-2.5 py-1 rounded-full bg-slate-100 hover:bg-sky-50 text-[10px] text-slate-600 border border-slate-200">GERD Acidity</button>
+    </div>
+
+    <!-- Chat Input -->
+    <div class="p-3 border-t border-slate-200 bg-white flex gap-2">
+      <input type="text" id="chat-input" onkeypress="if(event.key === 'Enter') sendChatMessage()" placeholder="Describe symptoms or pain..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-sky-500" />
+      <button onclick="sendChatMessage()" class="p-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl">
+        <i data-lucide="send" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- INLINE JAVASCRIPT LOGIC -->
+  <script>
+    // 1. Doctor Directory Data
+    const DOCTORS = [
+      { name: "Dr. Marcus Vance", dept: "Cardiology", fee: 1200, room: "Suite 302", qual: "MD, DM (Cardio), AIIMS", spec: "Coronary Angioplasty & Heart Failure" },
+      { name: "Dr. Ananya Deshmukh", dept: "Cardiology", fee: 1100, room: "Suite 305", qual: "MBBS, MD, FACC", spec: "Pediatric & Congenital Heart Care" },
+      { name: "Dr. Elena Rostova", dept: "Neurology", fee: 1500, room: "Suite 415", qual: "MD, DM (Neuro), NIMHANS", spec: "Epilepsy, Migraine & Stroke" },
+      { name: "Dr. Vikram Singhania", dept: "Neurology", fee: 1800, room: "Suite 418", qual: "MS, M.Ch (Neurosurgery)", spec: "Minimally Invasive Spine Surgery" },
+      { name: "Dr. David Chen", dept: "Orthopedics", fee: 1000, room: "Suite 108", qual: "MBBS, MS (Ortho), Stanford", spec: "Robotic Joint Reconstruction" },
+      { name: "Dr. Priya Nair", dept: "Orthopedics", fee: 900, room: "Suite 112", qual: "MBBS, M.Ch (Ortho)", spec: "Sports Injury & Arthroscopy" },
+      { name: "Dr. Rahul Mehta", dept: "Pediatrics", fee: 750, room: "Suite 201", qual: "MD (Pediatrics), DCH", spec: "Neonatology & Child Wellness" },
+      { name: "Dr. Kavita Sharma", dept: "Gynecology", fee: 1000, room: "Suite 210", qual: "MBBS, MS (OBG), FICOG", spec: "High-Risk Maternity & Laparoscopy" },
+      { name: "Dr. Arjun Patel", dept: "General Medicine", fee: 650, room: "Suite 102", qual: "MD (Medicine), MRCP", spec: "Internal Medicine & Diabetes" },
+      { name: "Dr. Sneha Kulkarni", dept: "Dermatology", fee: 850, room: "Suite 115", qual: "MD (DVL), Gold Medalist", spec: "Trichology, Acne & Laser Care" },
+      { name: "Dr. Rajesh Iyer", dept: "Gastroenterology", fee: 1300, room: "Suite 310", qual: "MD, DM (Gastro)", spec: "Endoscopy & Liver Care" },
+      { name: "Dr. Neha Verma", dept: "Endocrinology", fee: 1200, room: "Suite 315", qual: "MD, DM (Endo)", spec: "Diabetes & Thyroid Wellness" },
+      { name: "Dr. Siddharth Menon", dept: "Pulmonology", fee: 950, room: "Suite 220", qual: "MD (Pulmonary), FCCP", spec: "Asthma, COPD & Sleep Apnea" },
+      { name: "Dr. Rohit Bose", dept: "Oncology", fee: 1600, room: "Suite 501", qual: "DM (Medical Oncology)", spec: "Targeted Immunotherapy" }
+    ];
+
+    // 2. Sample 500+ Drug Formulary Data
+    const DRUGS = [
+      { name: "Tab. Amlodipine", dosage: "5mg", cat: "Cardiovascular", stock: 450, price: 65 },
+      { name: "Tab. Telmisartan", dosage: "40mg", cat: "Cardiovascular", stock: 320, price: 85 },
+      { name: "Tab. Metformin SR", dosage: "500mg", cat: "Endocrinology", stock: 780, price: 48 },
+      { name: "Tab. Glimepiride", dosage: "2mg", cat: "Endocrinology", stock: 410, price: 65 },
+      { name: "Tab. Pantoprazole", dosage: "40mg", cat: "Gastroenterology", stock: 690, price: 75 },
+      { name: "Tab. Levetiracetam", dosage: "500mg", cat: "Neurology", stock: 180, price: 280 },
+      { name: "Tab. Paracetamol", dosage: "650mg", cat: "Analgesic", stock: 1200, price: 30 },
+      { name: "Cap. Amoxicillin-Clav", dosage: "625mg", cat: "Antibiotic", stock: 340, price: 195 },
+      { name: "Tab. Montelukast-Levocet", dosage: "10mg/5mg", cat: "Pulmonology", stock: 400, price: 135 },
+      { name: "Tab. Atorvastatin", dosage: "10mg", cat: "Cardiovascular", stock: 520, price: 110 },
+      { name: "Tab. Escitalopram", dosage: "10mg", cat: "Psychiatry", stock: 260, price: 95 },
+      { name: "Tab. Etoricoxib", dosage: "90mg", cat: "Orthopedics", stock: 310, price: 135 }
+    ];
+
+    // Render Doctors
+    function renderDoctors() {
+      const container = document.getElementById('doctors-list-container');
+      container.innerHTML = DOCTORS.map((doc, idx) => `
+        <div onclick="selectDoctor('${doc.name}', '${doc.dept}', ${doc.fee}, '${doc.room}')" class="p-4 bg-white rounded-2xl border border-slate-200 hover:border-sky-500 cursor-pointer transition shadow-xs">
+          <div class="flex items-start justify-between">
+            <div>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-100">${doc.dept}</span>
+              <h4 class="font-bold text-slate-900 text-sm mt-1.5">${doc.name}</h4>
+              <p class="text-[11px] text-slate-500">${doc.spec}</p>
+            </div>
+            <div class="w-8 h-8 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-xs">${doc.name[4]}</div>
+          </div>
+          <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+            <span class="text-slate-500">${doc.room}</span>
+            <span class="font-bold text-slate-900">₹${doc.fee}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Render Drugs
+    function renderDrugs() {
+      const tbody = document.getElementById('drugs-table-body');
+      tbody.innerHTML = DRUGS.map(d => `
+        <tr class="hover:bg-slate-50">
+          <td class="p-3 font-bold text-slate-900">${d.name}</td>
+          <td class="p-3 font-mono">${d.dosage}</td>
+          <td class="p-3 text-slate-500">${d.cat}</td>
+          <td class="p-3"><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">${d.stock} in stock</span></td>
+          <td class="p-3 text-right font-bold text-slate-900">₹${d.price}</td>
+        </tr>
+      `).join('');
+    }
+
+    function filterDrugs() {
+      const q = document.getElementById('drug-search-input').value.toLowerCase();
+      const filtered = DRUGS.filter(d => d.name.toLowerCase().includes(q) || d.cat.toLowerCase().includes(q));
+      const tbody = document.getElementById('drugs-table-body');
+      tbody.innerHTML = filtered.map(d => `
+        <tr class="hover:bg-slate-50">
+          <td class="p-3 font-bold text-slate-900">${d.name}</td>
+          <td class="p-3 font-mono">${d.dosage}</td>
+          <td class="p-3 text-slate-500">${d.cat}</td>
+          <td class="p-3"><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">${d.stock} in stock</span></td>
+          <td class="p-3 text-right font-bold text-slate-900">₹${d.price}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Tab Switching
+    function switchTab(tabId) {
+      const views = ['booking', 'queue', 'pharmacy', 'kiosk', 'emergency'];
+      views.forEach(v => {
+        document.getElementById(`view-${v}`).classList.add('hidden');
+        const navBtn = document.getElementById(`nav-${v}`);
+        if (navBtn) {
+          navBtn.classList.remove('bg-white', 'text-sky-700', 'shadow-xs');
+          navBtn.classList.add('text-slate-600');
+        }
+      });
+
+      document.getElementById(`view-${tabId}`).classList.remove('hidden');
+      const activeNav = document.getElementById(`nav-${tabId}`);
+      if (activeNav) {
+        activeNav.classList.add('bg-white', 'text-sky-700', 'shadow-xs');
+        activeNav.classList.remove('text-slate-600');
+      }
+    }
+
+    function selectDoctor(name, dept, fee, room) {
+      document.getElementById('summary-doc-name').innerText = name;
+      document.getElementById('summary-doc-dept').innerText = `${dept} • ${room}`;
+    }
+
+    function selectSlot(time) {
+      document.querySelectorAll('.slot-btn').forEach(btn => {
+        btn.classList.remove('bg-sky-600', 'text-white', 'font-bold');
+        btn.classList.add('text-slate-700');
+      });
+      event.target.classList.add('bg-sky-600', 'text-white', 'font-bold');
+    }
+
+    function confirmAppointment() {
+      confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+      alert('🎉 Appointment Confirmed! Assigned Queue Token #CARD-04. Check Live Queue Board.');
+      switchTab('queue');
+    }
+
+    function dispatchAmbulance() {
+      confetti({ particleCount: 80, spread: 80 });
+      alert('🚨 CODE RED ALERT: Ambulance ALS Unit-01 has been dispatched with Paramedic Dr. Priya. Live GPS ETA: 8 minutes.');
+    }
+
+    function triggerVoiceCallout(token, room) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(`Attention please, Token number ${token}, please proceed to room ${room}.`);
+        msg.rate = 0.9;
+        window.speechSynthesis.speak(msg);
+      } else {
+        alert(`Attention please: Token ${token} to Room ${room}`);
+      }
+    }
+
+    // AI Chat Functions
+    function toggleAIChat() {
+      const modal = document.getElementById('ai-chat-modal');
+      modal.classList.toggle('hidden');
+      modal.classList.toggle('flex');
+    }
+
+    function sendQuickPrompt(text) {
+      document.getElementById('chat-input').value = text;
+      sendChatMessage();
+    }
+
+    function sendChatMessage() {
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const container = document.getElementById('chat-messages');
+
+      // Append User message
+      container.innerHTML += `
+        <div class="flex flex-col items-end">
+          <span class="text-[10px] text-slate-400 font-bold mb-1">You</span>
+          <div class="p-3 bg-sky-600 text-white rounded-2xl rounded-tr-none max-w-[85%]">${text}</div>
+        </div>
+      `;
+      input.value = '';
+
+      // Analyze and respond
+      setTimeout(() => {
+        let reply = "";
+        let specialty = "General Medicine";
+        let urgency = "MODERATE";
+
+        const q = text.toLowerCase();
+        if (q.includes('chest') || q.includes('heart') || q.includes('arm')) {
+          specialty = "Cardiology";
+          urgency = "EMERGENCY (CALL 108)";
+          reply = "Your symptoms match acute coronary ischemia / angina. Stop exertion immediately. An urgent ECG and Troponin-I test are advised.";
+        } else if (q.includes('migraine') || q.includes('aura') || q.includes('headache')) {
+          specialty = "Neurology";
+          urgency = "HIGH";
+          reply = "Indicates classic migraine with visual cortical spreading depression. Please consult a Neurologist for prophylaxis.";
+        } else if (q.includes('knee') || q.includes('joint') || q.includes('crepitus')) {
+          specialty = "Orthopedics";
+          urgency = "MODERATE";
+          reply = "Signs point toward knee osteoarthritis or meniscus wear. Avoid stairs and plan a bilateral standing X-Ray.";
+        } else {
+          reply = "Symptoms analyzed. Please schedule an in-person diagnostic workup with our specialist.";
+        }
+
+        container.innerHTML += `
+          <div class="flex flex-col items-start">
+            <span class="text-[10px] text-sky-600 font-bold mb-1">Dr. CareAI • ${specialty}</span>
+            <div class="p-3.5 bg-white border border-slate-200 rounded-2xl rounded-tl-none text-slate-800 max-w-[90%] shadow-xs space-y-2">
+              <p>${reply}</p>
+              <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                <span class="font-bold text-[11px] text-slate-900">${specialty} Clinic</span>
+                <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${urgency.includes('EMERGENCY') ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}">${urgency}</span>
+              </div>
+              <button onclick="toggleAIChat(); switchTab('booking');" class="w-full py-1.5 bg-sky-600 text-white text-[11px] font-bold rounded-lg">Book ${specialty} Specialist</button>
+            </div>
+          </div>
+        `;
+        container.scrollTop = container.scrollHeight;
+      }, 600);
+    }
+
+    // Prescription PDF Download Demo
+    function openDoctorEMR() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFillColor(2, 132, 199);
+      doc.rect(0, 0, 210, 30, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(20);
+      doc.text('CareFlow Medical Center', 14, 18);
+      doc.setFontSize(10);
+      doc.text('Official Electronic Prescription (Rx)', 14, 25);
+      doc.setTextColor(30, 41, 59);
+      doc.text('Patient Name: John Doe (Male, 38 Yrs) | Token #CARD-01', 14, 45);
+      doc.text('Consultant: Dr. Marcus Vance, MD (Cardiology) | Suite 302', 14, 52);
+      doc.text('Diagnosis: Stable Angina / Grade 1 Hypertension', 14, 62);
+      doc.text('Rx - Prescribed Medications:', 14, 75);
+      doc.text('1. Tab. Amlodipine 5mg - 1 Tab OD after breakfast x 30 days', 18, 85);
+      doc.text('2. Tab. Aspirin 75mg - 1 Tab post-lunch x 30 days', 18, 95);
+      doc.text('3. Tab. Pantoprazole 40mg - 1 Tab empty stomach x 15 days', 18, 105);
+      doc.text('Diagnostic Orders: Lipid Profile & 2D Echocardiogram', 14, 120);
+      doc.text('Authorized Doctor Signature: Dr. Marcus Vance', 120, 160);
+      doc.save('CareFlow_Prescription_CARD-01.pdf');
+    }
+
+    // Init
+    window.onload = () => {
+      lucide.createIcons();
+      renderDoctors();
+      renderDrugs();
+    };
+  </script>
+</body>
+</html>
