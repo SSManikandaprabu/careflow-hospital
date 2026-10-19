@@ -4,7 +4,7 @@ let socket: Socket | null = null;
 
 export const getSocket = (): Socket => {
   if (!socket) {
-    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://widely-flavor-flights-reflects.trycloudflare.com';
+    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://notification-participating-received-expectations.trycloudflare.com';
     socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
       autoConnect: true,

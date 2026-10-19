@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'https://widely-flavor-flights-reflects.trycloudflare.com/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://notification-participating-received-expectations.trycloudflare.com/api';
 
 export const api = {
   async get(url: string, token?: string) {
