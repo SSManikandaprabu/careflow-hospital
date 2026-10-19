@@ -1,6 +1,6 @@
 datasource db {
-  provider = "sqlite" // Easily switchable to "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./careflow.db"
 }
 
 generator client {
